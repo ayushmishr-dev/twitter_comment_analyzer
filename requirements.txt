@@ -1,0 +1,7 @@
+streamlit
+pandas
+vaderSentiment
+scikit-learn
+apify-client
+nltk
+requests
