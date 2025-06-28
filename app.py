@@ -10,11 +10,14 @@ import os
 import nltk
 nltk.download('stopwords')
 from nltk.corpus import stopwords
+from dotenv import load_dotenv
+
 
 st.set_page_config(page_title="Twitter Comment Analyzer", layout="wide")
 st.title("🐦 Twitter Post Comment Analyzer (Sentiment + Topic Modeling)")
 
-APIFY_TOKEN = st.secrets["APIFY_TOKEN"]
+load_dotenv()
+APIFY_TOKEN = os.getenv("APIFY_TOKEN")
 
 def extract_comment(item):
     for field in ['text', 'content', 'replyText']:
