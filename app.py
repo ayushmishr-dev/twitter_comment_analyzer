@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
@@ -11,7 +12,6 @@ import nltk
 nltk.download('stopwords')
 from nltk.corpus import stopwords
 from dotenv import load_dotenv
-
 
 st.set_page_config(page_title="Twitter Comment Analyzer", layout="wide")
 st.title("🐦 Twitter Post Comment Analyzer (Sentiment + Topic Modeling)")
@@ -51,7 +51,14 @@ def perform_sentiment_analysis(df):
     })
 
     sentiment_df.to_csv("sentiment_analysis.csv", index=False)
-    return sentiment_df
+
+    sentiment_counts = {
+        'Positive': sum([1 for c in pos_comments if c]),
+        'Negative': sum([1 for c in neg_comments if c]),
+        'Neutral': sum([1 for c in neu_comments if c])
+    }
+
+    return sentiment_df, sentiment_counts
 
 def clean_text(text):
     text = re.sub(r"http\S+", "", text)
@@ -104,25 +111,25 @@ def extract_comments(tweet_url):
 
         if response.status_code != 200:
             st.error("Failed to fetch dataset.")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}
 
         data = response.json()
         comments = [{"Comment": extract_comment(item)} for item in data if extract_comment(item)]
         if not comments:
             st.warning("No valid comments extracted.")
-            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}
 
         df = pd.DataFrame(comments)
         df.to_csv("comments.csv", index=False)
 
-        sentiment_df = perform_sentiment_analysis(df)
+        sentiment_df, sentiment_counts = perform_sentiment_analysis(df)
         topic_df = perform_topic_modeling(df)
 
-        return df, sentiment_df, topic_df
+        return df, sentiment_df, topic_df, sentiment_counts
 
     except Exception as e:
         st.error(f"Error: {e}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), {}
 
 tweet_url = st.text_input("Paste Twitter Post URL:", "")
 
@@ -131,7 +138,7 @@ if st.button("Analyze"):
         st.warning("Please enter a valid X/Twitter post URL.")
     else:
         with st.spinner("Extracting and analyzing comments..."):
-            df, sentiment_df, topic_df = extract_comments(tweet_url)
+            df, sentiment_df, topic_df, sentiment_counts = extract_comments(tweet_url)
 
             if not df.empty:
                 st.success("✅ Comments extracted.")
@@ -140,6 +147,17 @@ if st.button("Analyze"):
 
                 st.subheader("🔹 Sentiment Analysis")
                 st.dataframe(sentiment_df.head())
+
+                # Sentiment Visualization
+                st.subheader("📊 Sentiment Breakdown")
+                labels = list(sentiment_counts.keys())
+                sizes = list(sentiment_counts.values())
+                colors = ['#90EE90', '#FFCCCB', '#D3D3D3']
+
+                fig, ax = plt.subplots()
+                ax.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors, startangle=140)
+                ax.axis('equal')
+                st.pyplot(fig)
 
                 st.subheader("🔹 Topic Modeling")
                 st.dataframe(topic_df.head())
